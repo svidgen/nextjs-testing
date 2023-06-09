@@ -1,0 +1,26 @@
+type Thread
+  @model
+  @auth(rules: [
+    { allow: owner, operations: [create, read] },
+    { allow: private, operations: [read] }
+  ])
+{
+  id: ID!
+  topic: String
+  comments: [Comment] @hasMany
+  createdAt: AWSDateTime
+}
+
+type Comment
+  @model
+  @auth(rules: [
+    { allow: owner, operations: [create, read] },
+    { allow: private, operations: [read] },
+  ])
+{
+  id: ID!
+  owner: String
+  body: String!
+  thread: Thread! @belongsTo
+  createdAt: AWSDateTime
+}
