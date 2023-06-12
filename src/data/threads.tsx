@@ -60,6 +60,11 @@ export async function getAllThreads(context: Context) {
   return threads;
 }
 
+/**
+ * Concurrently begin deleting all threads.
+ *
+ * @param context
+ */
 export async function deleteAllThreads(context: Context) {
   const deletions = [];
   for (const thread of await getAllThreads(context)) {
@@ -74,5 +79,5 @@ export async function deleteAllThreads(context: Context) {
       })
     );
   }
-  await Promise.all(deletions);
+  return Promise.all(deletions);
 }
