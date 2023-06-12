@@ -1,40 +1,13 @@
-import { headers } from "next/headers";
 import { revalidatePath } from "next/cache";
-import * as server from "next/server";
-import * as x from "next/";
-import * as router from "next/router";
-import { Amplify, Auth, API, withSSRContext } from "aws-amplify";
 import { GraphQLQuery, GraphQLResult } from "@aws-amplify/api";
 import Authenticator from "@/components/authenticator";
-import ThreadIndex from "@/components/thread-index-a";
+import ThreadIndex from "@/components/thread-index-3";
 import * as queries from "../../graphql/queries";
 import * as mutations from "../../graphql/mutations";
 import type * as schema from "../../API";
 import description from "./description";
-import awsExports from "../../aws-exports";
 
-Amplify.configure({ ...awsExports, ssr: true });
-
-// #region to come from a util in UI lib?
-
-type Context = { API: typeof API };
-
-let _context: Context | undefined = undefined;
-
-function Context() {
-  if (!_context) {
-    const req = {
-      headers: {
-        cookie: headers().get("cookie"),
-      },
-    };
-    _context = withSSRContext({ req }) as Context;
-  }
-
-  return _context;
-}
-
-// #endregion
+import context from "../../data/server-context";
 
 /**
  * Gets a single page of threads, omitting "empty" items.
@@ -43,14 +16,12 @@ function Context() {
  * @returns The list of threads.
  */
 async function threadPage(nextToken: string | null | undefined) {
-  let page = await Context().API.graphql<GraphQLQuery<schema.ListThreadsQuery>>(
-    {
-      query: queries.listThreads,
-      variables: {
-        nextToken,
-      },
-    }
-  );
+  let page = await context.API.graphql<GraphQLQuery<schema.ListThreadsQuery>>({
+    query: queries.listThreads,
+    variables: {
+      nextToken,
+    },
+  });
 
   const result = {
     items: (page.data?.listThreads?.items.filter((i) => i) ||
@@ -95,7 +66,7 @@ async function addThread(data: FormData) {
   "use server";
 
   console.log("key", Array.from(data.entries()));
-  await Context().API.graphql<GraphQLQuery<schema.CreateThreadMutation>>({
+  await context.API.graphql<GraphQLQuery<schema.CreateThreadMutation>>({
     query: mutations.createThread,
     variables: {
       input: {
@@ -118,7 +89,7 @@ export default async function Home() {
         <h2>Sample B</h2>
         {description}
         <hr style={{ borderColor: "#222" }} />
-        <ThreadIndex threads={await getAllThreads()}></ThreadIndex>
+        <ThreadIndex threads={await getAllThreads()} filter={{}}></ThreadIndex>
         <form action={addThread}>
           <input type="text" name="topic" />
           <button type="submit">Add Thread</button>

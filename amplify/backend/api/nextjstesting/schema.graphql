@@ -1,10 +1,11 @@
 type Thread
   @model
-  @auth(rules: [
-    { allow: owner, operations: [create, read] },
-    { allow: private, operations: [read] }
-  ])
-{
+  @auth(
+    rules: [
+      { allow: owner, operations: [create, read, delete] }
+      { allow: private, operations: [read] }
+    ]
+  ) {
   id: ID!
   topic: String
   comments: [Comment] @hasMany
@@ -13,11 +14,12 @@ type Thread
 
 type Comment
   @model
-  @auth(rules: [
-    { allow: owner, operations: [create, read] },
-    { allow: private, operations: [read] },
-  ])
-{
+  @auth(
+    rules: [
+      { allow: owner, operations: [create, read] }
+      { allow: private, operations: [read] }
+    ]
+  ) {
   id: ID!
   owner: String
   body: String!
