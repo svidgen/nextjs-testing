@@ -1,6 +1,12 @@
-import { GraphQLQuery, GraphQLResult } from "@aws-amplify/api";
+import { Observable } from "zen-observable-ts";
+import {
+  GraphQLQuery,
+  GraphQLResult,
+  GraphQLSubscription,
+} from "@aws-amplify/api";
 import * as queries from "../graphql/queries";
 import * as mutations from "../graphql/mutations";
+import * as subscriptions from "../graphql/subscriptions";
 import type * as schema from "../API";
 import type Context from "./context-type";
 
@@ -80,4 +86,137 @@ export async function deleteAllThreads(context: Context) {
     );
   }
   return Promise.all(deletions);
+}
+
+export enum ObserverMessageType {
+  Create,
+  Update,
+  Delete,
+}
+
+type ThreadOp = {
+  op: ObserverMessageType;
+  value: schema.Thread;
+};
+
+export function observeThreads(
+  context: Context,
+  filter: any
+): Observable<ThreadOp> {
+  return new Observable((observer) => {
+    const onCreateSub = context.API.graphql<
+      GraphQLSubscription<schema.OnCreateThreadSubscription>
+    >({
+      query: subscriptions.onCreateThread,
+      variables: {
+        filter,
+      },
+    }).subscribe({
+      next: ({ provider, value }: any) => {
+        observer.next({
+          op: ObserverMessageType.Create,
+          value: value?.data?.onCreateThread,
+        });
+      },
+    });
+
+    const onUpdateSub = context.API.graphql<
+      GraphQLSubscription<schema.OnUpdateThreadSubscription>
+    >({
+      query: subscriptions.onUpdateThread,
+      variables: {
+        filter,
+      },
+    }).subscribe({
+      next: ({ provider, value }: any) => {
+        observer.next({
+          op: ObserverMessageType.Update,
+          value: value?.data?.onUpdateThread,
+        });
+      },
+    });
+
+    const onDeleteSub = context.API.graphql<
+      GraphQLSubscription<schema.OnDeleteThreadSubscription>
+    >({
+      query: subscriptions.onDeleteThread,
+      variables: {
+        filter,
+      },
+    }).subscribe({
+      next: ({ provider, value }: any) => {
+        observer.next({
+          op: ObserverMessageType.Delete,
+          value: value?.data?.onDeleteThread,
+        });
+      },
+    });
+
+    return () => {
+      onCreateSub.unsubscribe();
+      onUpdateSub.unsubscribe();
+      onDeleteSub.unsubscribe();
+    };
+  });
+}
+
+/**
+ * Sample observeQuery type of call. Naive implementation.
+ *
+ * @param context
+ * @param filter
+ */
+export function liveThreads(
+  context: Context,
+  filter: any
+): Observable<schema.Thread[]> {
+  return new Observable((observer) => {
+    const updates: ThreadOp[] = [];
+    let results: schema.Thread[] = [];
+    let initialResultsPopulated = false;
+
+    const ingestOperation = (op: ThreadOp) => {
+      switch (op.op) {
+        case ObserverMessageType.Create:
+          results.push(op.value);
+          break;
+        case ObserverMessageType.Update:
+          results = results.map((existing) =>
+            existing.id === op.value.id ? op.value : existing
+          );
+          break;
+        case ObserverMessageType.Delete:
+          results = results.filter((existing) =>
+            existing.id === op.value.id ? false : true
+          );
+          break;
+      }
+    };
+
+    const notifyObserver = () => {
+      observer.next(results);
+    };
+
+    const sub = observeThreads(context, filter).subscribe({
+      next: ({ op, value }) => {
+        if (initialResultsPopulated) {
+          ingestOperation({ op, value });
+          notifyObserver();
+        } else {
+          updates.push({ op, value });
+        }
+      },
+    });
+
+    getAllThreads(context).then((threads) => {
+      results.push(...threads);
+      initialResultsPopulated = true;
+      for (const update of updates) {
+        ingestOperation(update);
+      }
+      notifyObserver();
+    });
+
+    return () => sub.unsubscribe();
+  });
 }

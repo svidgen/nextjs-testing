@@ -9,4 +9,6 @@ const context: Context = {
   API,
 };
 
-export default context;
+export default function getContext() {
+  return context;
+}
