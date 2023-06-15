@@ -2,10 +2,13 @@ export default (
   <div>
     <ul>
       <li>
-        Adds items via <b>POST</b>
+        Initial results queried server-side, populate client-side component
       </li>
       <li>
-        Receives updates via <b>page reload</b>
+        Adds items via <b>server actions</b>
+      </li>
+      <li>
+        Receives updates via <b>observe + query</b>
       </li>
     </ul>
   </div>

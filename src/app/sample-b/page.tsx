@@ -22,15 +22,12 @@ async function addThread(data: FormData) {
       },
     },
   });
-
-  // revalidatePath("/sample-a");
 }
 
 async function deleteAll() {
   "use server";
 
   await deleteAllThreads(getContext());
-  // revalidatePath("./sample-a");
 }
 
 export default async function Home() {
